@@ -1,0 +1,175 @@
+**Regularization:**
+
+Regularization is a fundamental technique in machine learning used to prevent overfitting by adding a penalty term to the loss function. This penalty term discourages overly complex models by imposing constraints on the model parameters. By doing so, regularization helps improve the generalization ability of the model, making it perform better on unseen data. In regression tasks, two common regularization techniques are ridge regression and lasso regression. Ridge regression adds the squared magnitude of coefficients to the loss function, while lasso regression adds the absolute value of coefficients. These techniques are particularly useful when dealing with high-dimensional datasets where the number of features exceeds the number of observations, as they can effectively handle multicollinearity and select important features. In the following sections, we delve into the implementation and comparison of various regularization techniques, including least squares regression, ridge regression, and lasso regression, highlighting their differences and benefits in predictive modeling.
+
+Libraries and Preprocessing
+
+```{r}
+# Loading necessary libraries
+library(caTools)    # For data splitting
+library(caret)      # For machine learning workflow
+library(Metrics)    # For evaluating model performance
+library(dplyr)      # For data manipulation
+library(MASS)       # For ridge regression
+library(glmnet)     # For Lasso and ridge regression
+library(ISLR2)
+# Loading the College dataset
+college = College
+attach(college)  # Attaching the dataset to access variables directly
+rownames(college) = college[,1]  # Setting row names
+college = college[,-1]  # Removing the first column
+```
+
+**Least Squares Regression:**
+
+Least squares regression, also known as ordinary least squares (OLS), is a classic linear regression technique that aims to minimize the sum of squared residuals between observed and predicted values. It provides estimates for the coefficients of linear models by finding the line (or hyperplane) that best fits the data in the least squares sense. This method is straightforward and easy to implement, but it may suffer from overfitting when dealing with high-dimensional data or correlated predictors.
+
+```{r}
+# Splitting the data into training and testing sets
+set.seed(3)  # Setting seed for reproducibility
+train_index = sample(1:nrow(college), round(nrow(college) * 0.7))
+train = college[train_index, ]
+test = college[-train_index, ]
+
+# Fitting multiple linear regression model
+mlr_test = lm(Apps ~ ., data = train)
+summary(mlr_test)  # Summary of the model
+
+# Predicting on test set and calculating RMSE
+pred = predict(mlr_test, test)
+rmse = rmse(test$Apps, pred)  # Calculating root mean squared error
+rmse  # Outputting the RMSE
+```
+
+**Ridge Regression without Cross Validation:**
+
+Ridge regression, a regularized version of linear regression, adds a penalty term proportional to the squared magnitude of coefficients to the ordinary least squares objective function. This penalty term, controlled by a tuning parameter ?? (lambda), shrinks the coefficients towards zero, effectively reducing model complexity and mitigating multicollinearity issues. In the absence of cross-validation, the optimal value of ?? is typically chosen based on predefined criteria or heuristic methods, such as minimizing the prediction error on a separate validation set or using information criteria.
+
+```{r}
+# Preparing data for ridge regression
+train_mat = dummyVars(Apps ~ ., data = train, fullRank = F) %>%
+  predict(newdata = train) %>%
+  as.matrix()
+
+test_mat = dummyVars(Apps ~ ., data = test, fullRank = F) %>%
+  predict(newdata = test) %>%
+  as.matrix()
+
+# Performing ridge regression
+ridge = cv.glmnet(y = train$Apps, x = train_mat, alpha = 0)
+best_lambda = ridge$lambda.min  # Finding the best lambda
+best_model = glmnet(train_mat, train$Apps, alpha = 0, lambda = best_lambda)
+round(coef(best_model), 4)  # Coefficients of the best model
+
+# Predicting on test set and calculating RMSE
+ridge_pred = predict(best_model, s = ridge$lambda.min, newx = test_mat)
+ridge_mse = mean((ridge_pred - test$Apps)^2)
+(sqrt(ridge_mse))  # Outputting the RMSE
+
+plot(ridge)  # Plotting ridge regression
+```
+
+**Lasso Regression without Cross Validation:**
+
+Lasso regression, short for Least Absolute Shrinkage and Selection Operator, is another regularized regression method that adds a penalty term proportional to the absolute value of coefficients to the ordinary least squares objective function. Similar to ridge regression, lasso regression encourages sparse solutions by driving some coefficients to exactly zero, effectively performing feature selection. Without cross-validation, determining the optimal value of the regularization parameter ?? relies on heuristic approaches or predefined criteria, such as minimizing prediction error or using information criteria.
+
+```{r}
+# Performing lasso regression
+lasso = cv.glmnet(y = train$Apps, x = train_mat, alpha = 1)
+best_lambda = lasso$lambda.min  # Finding the best lambda
+best_model = glmnet(train_mat, train$Apps, alpha = 1, lambda = best_lambda)
+round(coef(best_model), 3)  # Coefficients of the best model
+
+# Predicting on test set and calculating RMSE
+lasso_pred = predict(best_model, s = lasso$lambda.min, newx = test_mat)
+lasso_mse = mean((lasso_pred - test$Apps)^2)
+(sqrt(lasso_mse))  # Outputting the RMSE
+
+plot(lasso)  # Plotting lasso regression
+```
+
+**Ridge Regression with Cross Validation:**
+
+Ridge regression with cross-validation enhances the regularization process by systematically selecting the optimal value of the regularization parameter ?? through cross-validation. Cross-validation partitions the training data into multiple subsets, allowing for robust estimation of model performance across different parameter values. The chosen ?? value is typically the one that minimizes the cross-validated prediction error, ensuring better generalization performance on unseen data. Visualizing the cross-validation process provides insights into how the regularization parameter affects model performance and helps in understanding the trade-off between bias and variance.
+
+```{r}
+# Performing ridge regression with cross validation
+ridge = cv.glmnet(y = train$Apps, 
+                   x = train_mat, 
+                   alpha = 0, 
+                   lambda = 10^seq(2,-2, length = 100), 
+                   standardize = TRUE, 
+                   nfolds = 5)
+
+# Visualizing lambda selection process
+data.frame(lambda = ridge$lambda, cv_mse = ridge$cvm) %>%
+  ggplot(aes(x = lambda, y = cv_mse)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_vline(xintercept = ridge$lambda.min, col = "deepskyblue3") +
+  geom_hline(yintercept = min(ridge$cvm), col = "deepskyblue3") +
+  scale_x_continuous(trans = 'log10', breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
+  scale_y_continuous(labels = scales::comma_format()) + 
+  theme(legend.position = "bottom") + 
+  labs(x = "Lambda", y = "Cross-Validation MSE", 
+       col = "Non-Zero Coefficients:", title = "Ridge Regression - Lambda Selection (Using 5-Fold Cross-Validation)")
+
+# Fitting ridge regression with best lambda
+ridge_best = glmnet(y = train$Apps,
+                     x = train_mat,
+                     alpha = 0, 
+                     lambda = 10^seq(2,-2, length = 100))
+
+# Predicting on test set and calculating RMSE
+ridge_pred = predict(ridge_best, s = ridge$lambda.min, newx = test_mat)
+ridge_mse = mean((ridge_pred - test$Apps)^2)
+(sqrt(ridge_mse))  # Outputting the RMSE
+
+plot(ridge_best)  # Plotting ridge regression
+```
+
+**Lasso Regression with Cross Validation:**
+
+Lasso regression with cross-validation extends the regularization process of lasso regression by systematically selecting the optimal value of the regularization parameter ?? through cross-validation. Cross-validation helps in selecting the value of ?? that minimizes the cross-validated prediction error, ensuring better generalization performance. Visualizing the cross-validation process provides insights into the impact of different ?? values on model performance and helps in understanding the trade-off between bias and variance. Additionally, lasso regression with cross-validation facilitates automatic feature selection by identifying the most relevant predictors while shrinking less important ones towards zero.
+
+```{r}
+# Performing lasso regression with cross validation
+lasso = cv.glmnet(y = train$Apps, 
+                   x = train_mat, 
+                   alpha = 1, 
+                   lambda = 10^seq(2, -2, length = 100), 
+                   standardize = TRUE, 
+                   nfolds = 5, 
+                   thresh = 1e-12)
+
+# Visualizing lambda selection process
+data.frame(lambda = lasso$lambda, cv_mse = lasso$cvm, nonzero_coeff = lasso$nzero) %>%
+  ggplot(aes(x = lambda, y = cv_mse, col = nonzero_coeff)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_vline(xintercept = lasso$lambda.min, col = "deepskyblue3") +
+  geom_hline(yintercept = min(lasso$cvm), col = "deepskyblue3") +
+  scale_x_continuous(trans = 'log10', breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
+  scale_y_continuous(labels = scales::comma_format()) + 
+  theme(legend.position = "bottom") + 
+  scale_color_gradient(low = "red", high = "green") +
+  labs(x = "Lambda", y = "Cross-Validation MSE", 
+       col = "Non-Zero Coefficients:", title = "Lasso - Lambda Selection (Using 5-Fold Cross-Validation)")
+
+# Fitting lasso regression with best lambda
+lasso_best = glmnet(y = train$Apps,
+                     x = train_mat,
+                     alpha = 1, 
+                     lambda = 10^seq(2,-5, length = 100))
+
+# Predicting on test set and calculating RMSE
+lasso_pred = predict(lasso_best, s = lasso$lambda.min, newx = test_mat)
+lasso_mse = mean((lasso_pred - test$Apps)^2)
+
+# Outputting coefficients and RMSE
+lasso_coef = predict(lasso_best, type = "coefficients", s = lasso$lambda.min)
+round(lasso_coef, 3)
+(sqrt(lasso_mse))  # Outputting the RMSE
+
+plot(lasso_best)  # Plotting lasso regression
+```
