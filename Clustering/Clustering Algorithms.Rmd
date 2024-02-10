@@ -1,0 +1,156 @@
+**Clustering Algorithms**
+
+**K-means Clustering:**
+
+K-means clustering is a popular unsupervised machine learning algorithm used for partitioning data into distinct groups based on similarity. It is widely employed in various fields such as data mining, pattern recognition, and image analysis. The algorithm aims to minimize the within-cluster variance, assigning data points to the nearest cluster centroid iteratively until convergence. This iterative process involves an initial selection of cluster centroids, followed by the assignment of data points to their nearest centroids and updating the centroids based on the mean of the assigned points. K-means clustering requires specifying the number of clusters, denoted as K, prior to execution. In this context, we will explore the implementation of K-means clustering with different values of K, assessing the clustering performance through visualizations and cluster validation measures.
+
+Importing the libraries and simulating the data.
+
+```{r}
+# Loading necessary libraries
+library(factoextra)  # For clustering visualization
+library(cluster)     # For clustering algorithms
+library(fpc)         # For cluster validation measures
+library(mclust)      # For GMM
+# Generating simulated data
+set.seed(130)
+x = matrix(rnorm(50 * 2), ncol = 2)
+x[1:25, 1] = x[1:25, 1] + 3
+x[1:25, 2] = x[1:25, 2] - 4
+```
+
+Upon importing necessary libraries and generating simulated data, K-means clustering is performed for different values of K, specifically K = 2 and K = 3.
+
+Kmeans for k = 2
+
+```{r}
+# Performing k-means clustering with k = 2
+kmeans2 = kmeans(x, 2, nstart = 20)
+kmeans2
+
+# Visualizing clustering results
+plot(x, col = (kmeans2$cluster + 1),
+       main = "K-Means Clustering Results with K = 2",
+       xlab = "", ylab = "", pch = 20, cex = 2)
+```
+
+Kmeans for k = 3
+
+```{r}
+# Performing k-means clustering with k = 3
+kmeans3 = kmeans(x, 3, nstart = 20)
+kmeans3
+
+# Visualizing clustering results
+plot(x, col = (kmeans3$cluster + 1),
+     main = "K-Means Clustering Results with K = 3",
+     xlab = "", ylab = "", pch = 20, cex = 2)
+```
+
+For each clustering instance, the within-cluster sum of squares (WCSS), Silhouette coefficient, and Dunn index are calculated to evaluate the clustering quality.
+
+The Silhouette coefficient quantifies the quality of clustering by measuring the compactness and separation of clusters. It is computed for each data point and represents the average Silhouette width across all points, indicating how well-separated the clusters are.
+
+The Dunn index assesses the compactness and separation of clusters by considering the ratio of the minimum inter-cluster distance to the maximum intra-cluster distance. A higher Dunn index suggests better clustering, with smaller intra-cluster distances and larger inter-cluster distances.
+
+Additionally, the within-cluster sum of squares (WCSS) is calculated, representing the sum of squared distances between each data point and its assigned cluster centroid. Lower WCSS values indicate tighter clusters, reflecting better clustering performance.
+
+Strength and Accuracy for K = 2
+
+```{r}
+# Calculating cluster validation measures for k = 2
+# Silhouette coefficient
+silhouette = silhouette(kmeans2$cluster, dist(x))
+silhouette_avg = mean(silhouette[, "sil_width"])
+
+# Dunn index
+dunn = cluster.stats(dist(x), kmeans2$cluster)
+
+# Within-cluster sum of squares (WCSS)
+wcss = kmeans2$tot.withinss
+
+cat("Silhouette coefficient for k = 2:", silhouette_avg, "\n")
+cat("Dunn index for k = 2:", dunn$dunn, "\n")
+cat("WCSS for k = 2:", wcss, "\n")
+```
+
+Strength and Accuracy for K = 3
+
+```{r}
+# Calculating cluster validation measures for k = 3
+# Silhouette coefficient
+silhouette = silhouette(kmeans3$cluster, dist(x))
+silhouette_avg = mean(silhouette[, "sil_width"])
+
+# Dunn index
+dunn = cluster.stats(dist(x), kmeans3$cluster)
+
+# Within-cluster sum of squares (WCSS)
+wcss = kmeans3$tot.withinss
+
+cat("Silhouette coefficient for k = 3:", silhouette_avg, "\n")
+cat("Dunn index for k = 3:", dunn$dunn, "\n")
+cat("WCSS for k = 3:", wcss, "\n")
+```
+
+**DBSCAN (Density-Based Spatial Clustering of Applications with Noise):**
+
+DBSCAN is a density-based clustering algorithm that groups together closely packed points into the same cluster while marking points in low-density regions as outliers. Unlike K-means, DBSCAN does not require specifying the number of clusters beforehand and can identify clusters of arbitrary shapes and sizes. The algorithm defines clusters based on two parameters: epsilon (eps), which determines the neighborhood size, and minPts, which specifies the minimum number of points required to form a dense region. DBSCAN is robust to noise and capable of handling datasets with varying densities.
+
+```{r}
+# Performing DBSCAN clustering
+dbscan_result = dbscan(x, eps = 0.5, MinPts = 5)
+
+# Visualizing DBSCAN clustering results
+fviz_cluster(dbscan_result, data = x,
+             geom = "point", stand = FALSE,
+             xlab = "x value", ylab = "y value",
+             main = "DBSCAN Clustering Results")
+
+
+```
+
+**Gaussian Mixture Models (GMM):**
+
+Gaussian Mixture Models (GMM) assume that the data is generated from a mixture of several Gaussian distributions. Unlike K-means, GMM provides probabilistic cluster assignments and can capture clusters of varying shapes and sizes. The algorithm estimates the parameters (mean and covariance) of each Gaussian distribution to fit the data. GMM is flexible and suitable for datasets with complex structures where clusters may overlap or exhibit non-linear relationships.
+
+```{r}
+# Performing Gaussian Mixture Models clustering
+gmm_result = Mclust(x)
+
+# Visualizing Gaussian Mixture Models clustering results
+plot(gmm_result, what = "classification", main = "GMM Clustering Results")
+
+```
+
+**Accuracy:**
+
+We'll compute the silhouette coefficient measures of clustering accuracy for DBSCAN, and Gaussian Mixture Models (GMM).
+
+**DBSCAN (Density-Based Spatial Clustering of Applications with Noise):**
+
+DBSCAN, a density-based clustering algorithm, can also be evaluated using internal validation measures. However, if DBSCAN produces only one cluster, some measures may not be applicable.
+
+```{r}
+# Internal validation measures for DBSCAN
+library(clValid)
+if (length(unique(dbscan_result$cluster)) > 1) {
+  dbscan_silhouette = silhouette(dbscan_result$cluster, dist(x))
+  dbscan_silhouette_avg = mean(dbscan_silhouette[, "sil_width"])
+  
+
+  cat("Silhouette coefficient for DBSCAN:", dbscan_silhouette_avg, "\n")
+}
+```
+
+**Gaussian Mixture Models (GMM):**
+
+Gaussian Mixture Models (GMM) provide probabilistic cluster assignments and can be evaluated using similar internal validation measures.
+
+```{r}
+# Internal validation measures for Gaussian Mixture Models
+gmm_silhouette = silhouette(gmm_result$classification, dist(x))
+gmm_silhouette_avg = mean(gmm_silhouette[, "sil_width"])
+
+cat("Silhouette coefficient for GMM:", gmm_silhouette_avg, "\n")
+```
