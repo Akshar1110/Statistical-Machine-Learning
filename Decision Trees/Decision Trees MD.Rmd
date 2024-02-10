@@ -1,0 +1,84 @@
+**\
+Introduction to Decision Trees:**
+
+Decision Trees are a fundamental tool in the realm of machine learning and data mining, offering a transparent and intuitive way to represent and interpret decision-making processes. They operate by recursively partitioning the input space into regions, guided by the features of the data, with each partition corresponding to a decision or outcome. At each node of the tree, a decision is made based on a specific feature, leading to a branching structure that culminates in leaf nodes representing the final decision or prediction. This hierarchical structure makes decision trees particularly well-suited for classification and regression tasks, offering interpretability and ease of visualization.
+
+In addition to Decision Trees, Logistic Regression is another commonly used technique in predictive modeling. Unlike decision trees, which partition the feature space into regions, logistic regression models the probability of a binary outcome as a function of one or more predictor variables. It employs the logistic function to transform the linear combination of predictors into probabilities, making it suitable for binary classification tasks. Despite its simplicity, logistic regression offers robustness and efficiency in modeling binary outcomes, making it a valuable tool in various domains. In the provided code, logistic regression is employed to model the relationship between predictors and the binary outcome, providing insights into the probability of a certain outcome occurring.
+
+The provided code demonstrates the application of Decision Trees and Logistic Regression for binary classification tasks, highlighting their respective strengths and performance metrics. By leveraging these techniques and understanding their underlying principles, practitioners can effectively analyze and make predictions from their data, ultimately driving informed decision-making processes.
+
+Preprocessing the data and splitting
+
+```{r}
+# Loading necessary libraries
+library(rpart)    # For decision trees
+library(ISLR2)   # For the Carseats dataset
+
+# Load the Carseats dataset
+data(Carseats)
+
+# Converting the `Sales` variable to binary based on threshold
+Carseats$High = ifelse(Carseats$Sales <= 8, "0", "1")
+Carseats$High = as.factor(Carseats$High)
+
+# Splitting the data into training and testing sets
+set.seed(123)  # Setting seed for reproducibility
+train_idx = sample(nrow(Carseats), round(0.7 * nrow(Carseats)), replace = FALSE)
+train_data = Carseats[train_idx, ]
+test_data = Carseats[-train_idx, ]
+```
+
+Decision Tree classifier
+
+```{r}
+# Fitting a decision tree classifier on the training data
+tree_model = rpart(High ~ ., data = train_data, method = "class")
+
+# Plotting the decision tree
+plot(tree_model)
+text(tree_model, pretty = 0, cex = 0.7)
+
+# Making predictions on the training and testing data using the fitted model
+train_pred = predict(tree_model, newdata = train_data, type = "class")
+test_pred = predict(tree_model, newdata = test_data, type = "class")
+
+# Calculating the training and testing error rates
+train_error = mean(train_pred != train_data$High)
+test_error = mean(test_pred != test_data$High)
+
+# Printing the results
+cat("Decision Tree Training error rate:", train_error, "\n")
+cat("Decision Tree Testing error rate:", test_error, "\n")
+```
+
+Logistic Model
+
+```{r}
+# Fitting a logistic model on the training data
+logi_model = glm(High ~ ., data = train_data, family = "binomial")
+
+# Making predictions on the training and testing data using the fitted model
+log_train_pred = predict(logi_model, newdata = train_data, type = "response")
+log_test_pred = predict(logi_model, newdata = test_data, type = "response")
+
+# Calculating the training and testing error rates
+log_train_error = mean(log_train_pred != train_data$High)
+log_test_error = mean(log_test_pred != test_data$High)
+
+# Printing the results
+cat("Logistic Training error rate:", log_train_error, "\n")
+cat("Logistic Testing error rate:", log_test_error, "\n")
+```
+
+Errors
+
+```{r}
+# Outputting the error rates
+cat("Decision Tree Training error rate:", train_error, "\n")
+cat("Decision Tree Testing error rate:", test_error, "\n")
+
+cat("Logistic Training error rate:", log_train_error, "\n")
+cat("Logistic Testing error rate:", log_test_error, "\n")
+```
+
+Logistic has a higher testing error than decision trees.
