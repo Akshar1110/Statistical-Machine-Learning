@@ -1,0 +1,83 @@
+**Principal Component Analysis (PCA) and K-Nearest Neighbors (KNN) Classifier**
+
+Principal Component Analysis (PCA) is a dimensionality reduction technique used to transform high-dimensional data into a lower-dimensional space while preserving most of the important information. It achieves this by identifying the directions (principal components) that capture the maximum variance in the data. PCA is widely employed for exploratory data analysis and visualization, making it easier to comprehend complex datasets.
+
+K-Nearest Neighbors (KNN) is a simple yet effective classification algorithm used for both classification and regression tasks. In KNN, the class of a data point is determined by the majority class among its k-nearest neighbors in the feature space. This non-parametric algorithm is particularly useful when the decision boundary is irregular or the data distribution is not well-defined. KNN's simplicity and intuitive nature make it a popular choice for various machine learning applications.
+
+Importing Libraries
+
+```{r}
+# Loading necessary libraries
+library(corrr)      # For correlation analysis
+library(ggcorrplot) # For visualizing correlations
+library(factoextra) # For PCA visualization
+library(class)      # For KNN classifier
+library(ISLR2)      # For Smarket dataset
+library(caret)      # For machine learning workflow
+library(MASS)       # For logistic regression
+library(caTools)    # For data splitting
+# Loading Smarket dataset
+data("Smarket")
+attach(Smarket)  # Attaching the dataset to access variables directly
+```
+
+PCA on SMarket Dataset
+
+```{r}
+# Preparing data for PCA
+Smarket_pca = Smarket[, -9]  # Excluding the 'Year' column
+Smarket_pca_scaled = scale(Smarket_pca)  # Scaling the data
+Smarket_pca_results = princomp(Smarket_pca_scaled)  # Performing PCA
+
+summary(Smarket_pca_results)  # Summary of PCA results
+
+# Plotting PCA results
+plot(Smarket_pca_results, type = "l")  # Scree plot
+biplot(Smarket_pca_results, scale = 0)  # Biplot
+fviz_pca_var(Smarket_pca_results, col.var = "black")  # Variable factor map
+fviz_cos2(Smarket_pca_results, choice = "var", axes = 1:2)  # Contributions of variables to dimensions
+fviz_pca_var(Smarket_pca_results, col.var = "cos2",
+             gradient.cols = c("black", "orange", "green"),
+             repel = TRUE)  # Quality of representation of variables
+```
+
+KNN Classifier on Smarket
+
+```{r}
+# Splitting data into training and testing sets
+train = Smarket[Smarket$Year < 2005, ]
+test = Smarket[Smarket$Year == 2005, ]
+
+k = 3  # Setting the value of k
+
+# Performing KNN classification
+knn.fit = knn(train[,-9], test[,-9], cl = train$Direction, k = k)
+
+# Calculating training and testing errors
+train.pred = knn(train[,-9], train[,-9], cl = train$Direction, k = k)
+train.error = mean(train.pred != train$Direction)
+test.error = mean(knn.fit != test$Direction)
+
+cat("Training error:", train.error, "\n")
+cat("Testing error:", test.error, "\n")
+```
+
+**Logistic Regression Model**: Logistic regression is a statistical method used for binary classification tasks. Unlike linear regression, which predicts continuous values, logistic regression predicts the probability of occurrence of an event by fitting data to a logistic curve. It's widely employed in fields such as medicine, social sciences, and economics due to its simplicity and interpretability. In this context, logistic regression is applied to predict the direction of stock market movements based on lagged stock returns and trading volume.
+
+Logistic Model on Smarket Dataset
+
+```{r}
+# Fitting logistic regression model
+glm.fit = glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, data = train, family = binomial)
+
+# Predicting on training and testing sets
+train.pred = predict(glm.fit, type = "response", newdata = train)
+test.pred = predict(glm.fit, type = "response", newdata = test)
+
+# Calculating training and testing errors
+train.errors = mean((train$Direction != ifelse(train.pred > 0.5, "Up", "Down")))
+test.errors = mean((test$Direction != ifelse(test.pred > 0.5, "Up", "Down")))
+
+cat("Training error: ", train.errors, "\n")
+cat("Testing error: ", test.errors, "\n")
+```
